@@ -252,3 +252,4 @@ Every PR triggers:
 3. Add at least `not_null` + `unique` on PKs, `accepted_values` on categoricals
 4. Run `dbt build --select +my_model+` locally
 5. Open PR → CI runs automatically
+
