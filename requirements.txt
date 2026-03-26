@@ -1,0 +1,5 @@
+dbt-core==1.7.4
+dbt-snowflake==1.7.4
+sqlfluff==2.3.5
+sqlfluff-templater-dbt==2.3.5
+PyYAML>=6.0

@@ -1,0 +1,16 @@
+packages:
+  # dbt utilities — generate_surrogate_key, safe_add, etc.
+  - package: dbt-labs/dbt_utils
+    version: [">=1.1.0", "<2.0.0"]
+
+  # Audit helper — compare row counts across environments
+  - package: dbt-labs/audit_helper
+    version: [">=0.9.0", "<1.0.0"]
+
+  # Elementary — data observability (anomaly detection, freshness alerts)
+  - package: elementary-data/elementary
+    version: [">=0.13.0", "<1.0.0"]
+
+  # Codegen — auto-generate schema.yml from Snowflake information schema
+  - package: dbt-labs/codegen
+    version: [">=0.12.0", "<1.0.0"]

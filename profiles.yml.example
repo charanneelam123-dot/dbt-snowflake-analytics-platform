@@ -1,0 +1,49 @@
+# profiles.yml.example
+# Copy this file to ~/.dbt/profiles.yml and fill in your Snowflake credentials.
+# NEVER commit the real profiles.yml — it contains secrets.
+
+snowflake_analytics:
+  target: dev
+  outputs:
+
+    dev:
+      type:        snowflake
+      account:     "{{ env_var('SNOWFLAKE_ACCOUNT') }}"        # e.g. xy12345.us-east-1
+      user:        "{{ env_var('SNOWFLAKE_USER') }}"
+      password:    "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role:        "{{ env_var('SNOWFLAKE_ROLE', 'TRANSFORMER') }}"
+      database:    "{{ env_var('SNOWFLAKE_DATABASE', 'ANALYTICS_DEV') }}"
+      warehouse:   "{{ env_var('SNOWFLAKE_WAREHOUSE', 'TRANSFORM_WH_XS') }}"
+      schema:      "{{ env_var('SNOWFLAKE_SCHEMA', 'DBT_DEV') }}"
+      threads:     4
+      client_session_keep_alive: false
+      query_tag:   "dbt_dev"
+      # Connection retry on transient errors
+      connect_retries: 3
+      connect_timeout: 30
+
+    ci:
+      type:        snowflake
+      account:     "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user:        "{{ env_var('SNOWFLAKE_USER') }}"
+      password:    "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role:        "{{ env_var('SNOWFLAKE_ROLE', 'CI_ROLE') }}"
+      database:    "{{ env_var('SNOWFLAKE_DATABASE', 'ANALYTICS_CI') }}"
+      warehouse:   "TRANSFORM_WH_XS"
+      schema:      "DBT_CI_{{ env_var('PR_NUMBER', 'LOCAL') }}"
+      threads:     8
+      query_tag:   "dbt_ci_pr{{ env_var('PR_NUMBER', 'local') }}"
+
+    prod:
+      type:        snowflake
+      account:     "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user:        "{{ env_var('SNOWFLAKE_USER') }}"
+      # Use key-pair auth in production — no plaintext passwords
+      private_key_path:       "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
+      role:        TRANSFORMER
+      database:    ANALYTICS
+      warehouse:   TRANSFORM_WH_M
+      schema:      DBT_PROD
+      threads:     16
+      query_tag:   "dbt_prod"

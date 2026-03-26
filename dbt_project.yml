@@ -1,0 +1,85 @@
+name: "analytics_platform"
+version: "1.0.0"
+config-version: 2
+
+profile: "snowflake_analytics"
+
+model-paths:    ["models"]
+analysis-paths: ["analyses"]
+test-paths:     ["tests"]
+seed-paths:     ["seeds"]
+macro-paths:    ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path:  "target"
+clean-targets: ["target", "dbt_packages"]
+
+# ─── Global model configs ─────────────────────────────────────────────────────
+models:
+  analytics_platform:
+
+    staging:
+      +schema:       staging
+      +materialized: view
+      +tags:         ["staging", "daily"]
+      +docs:
+        node_color:  "#A8D5BA"   # green — raw/staging
+
+    intermediate:
+      +schema:       intermediate
+      +materialized: ephemeral
+      +tags:         ["intermediate"]
+      +docs:
+        node_color:  "#F5CBA7"   # orange — intermediate
+
+    marts:
+      +schema:       marts
+      +tags:         ["marts", "daily"]
+      +docs:
+        node_color:  "#AED6F1"   # blue — marts/facts/dims
+
+      facts:
+        +materialized: incremental
+        +incremental_strategy: merge
+        +unique_key:   order_key
+
+      dimensions:
+        +materialized: table
+        +post-hook:
+          - "GRANT SELECT ON {{ this }} TO ROLE REPORTER"
+
+# ─── Seeds ────────────────────────────────────────────────────────────────────
+seeds:
+  analytics_platform:
+    +schema: seeds
+    +column_types:
+      id: varchar
+
+# ─── Snapshots ────────────────────────────────────────────────────────────────
+snapshots:
+  analytics_platform:
+    +target_schema: snapshots
+    +strategy:      timestamp
+    +unique_key:    customer_key
+
+# ─── Tests ────────────────────────────────────────────────────────────────────
+tests:
+  +severity:    warn
+  +limit:       500          # show up to 500 failing rows in test output
+
+  # Override severity for critical tests via schema.yml config blocks
+  # (done per-test with `config: {severity: error}`)
+
+# ─── Sources ──────────────────────────────────────────────────────────────────
+vars:
+  # Snowflake Sample Data — TPC-H benchmark at scale factor 1 (~6M orders)
+  tpch_database:  "SNOWFLAKE_SAMPLE_DATA"
+  tpch_schema:    "TPCH_SF1"
+
+  # Incremental look-back window (reprocess last N days to catch late data)
+  incremental_lookback_days: 3
+
+  # SCD Type 2 control
+  scd2_current_flag_value:   "Y"
+  scd2_expired_flag_value:   "N"
+  scd2_far_future_date:      "9999-12-31"

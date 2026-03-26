@@ -1,0 +1,58 @@
+version: 2
+
+models:
+  - name: int_orders_enriched
+    description: >
+      Intermediate model at order LINE ITEM grain.
+      Joins orders + customers + line items + products into a denormalised
+      analytical record. Materialised as ephemeral so it compiles inline
+      into downstream fact/dim queries — no warehouse storage cost.
+
+      This is the single authoritative source of revenue, shipping, and
+      product metrics used by all marts. Changes to revenue logic must be
+      made here.
+    columns:
+      - name: order_line_sk
+        description: Surrogate key (MD5 hash of order_key + line_number).
+        tests: [not_null, unique]
+      - name: order_key
+        tests: [not_null]
+      - name: line_number
+        tests: [not_null]
+      - name: order_date
+        tests: [not_null]
+      - name: customer_key
+        tests: [not_null]
+      - name: product_key
+        tests: [not_null]
+      - name: net_revenue
+        description: Extended price after discount, before tax.
+        tests:
+          - not_null
+          - {dbt_utils.expression_is_true: {expression: ">= 0"}}
+      - name: gross_revenue
+        description: Net revenue including tax.
+        tests:
+          - not_null
+          - {dbt_utils.expression_is_true: {expression: ">= net_revenue"}}
+      - name: discount_amount
+        description: Total discount applied to this line item.
+        tests:
+          - not_null
+          - {dbt_utils.expression_is_true: {expression: ">= 0"}}
+      - name: delivery_status
+        tests:
+          - accepted_values:
+              values: ['On-Time', 'Late']
+      - name: days_to_ship
+        description: Days from order_date to ship_date. Should be >= 0.
+      - name: total_fulfillment_days
+        description: Days from order placed to receipt by customer.
+      - name: fiscal_year
+        tests: [not_null]
+      - name: fiscal_quarter
+        tests: [not_null]
+      - name: market_segment
+        tests:
+          - accepted_values:
+              values: ['AUTOMOBILE', 'BUILDING', 'FURNITURE', 'HOUSEHOLD', 'MACHINERY']

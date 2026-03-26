@@ -1,0 +1,187 @@
+version: 2
+
+sources:
+  - name: tpch
+    description: >
+      Snowflake Sample Data — TPC-H benchmark at Scale Factor 1.
+      Approximately 1.5M orders, 150k customers, 200k parts.
+      Available in every Snowflake account under SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.
+    database: "{{ var('tpch_database') }}"
+    schema:   "{{ var('tpch_schema') }}"
+    tables:
+      - name: orders
+        description: All customer orders.
+        freshness:
+          warn_after:  {count: 1,  period: day}
+          error_after: {count: 3,  period: day}
+        loaded_at_field: o_orderdate
+        columns:
+          - name: o_orderkey
+            description: Unique order identifier.
+            tests: [not_null, unique]
+          - name: o_custkey
+            description: FK to customer.
+            tests: [not_null]
+          - name: o_totalprice
+            description: Total monetary value of the order.
+            tests: [not_null, {dbt_utils.expression_is_true: {expression: ">= 0"}}]
+          - name: o_orderdate
+            tests: [not_null]
+          - name: o_orderstatus
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['O', 'F', 'P']
+
+      - name: customer
+        description: Customer master data with geography and financials.
+        columns:
+          - name: c_custkey
+            tests: [not_null, unique]
+          - name: c_mktsegment
+            tests:
+              - accepted_values:
+                  values: ['AUTOMOBILE', 'BUILDING', 'FURNITURE', 'HOUSEHOLD', 'MACHINERY']
+
+      - name: part
+        description: Product / part catalogue.
+        columns:
+          - name: p_partkey
+            tests: [not_null, unique]
+          - name: p_retailprice
+            tests:
+              - not_null
+              - {dbt_utils.expression_is_true: {expression: "> 0"}}
+
+      - name: partsupp
+        description: Supplier availability and cost per part.
+        columns:
+          - name: ps_availqty
+            tests: [{dbt_utils.expression_is_true: {expression: ">= 0"}}]
+
+      - name: supplier
+        description: Supplier master data.
+        columns:
+          - name: s_suppkey
+            tests: [not_null, unique]
+
+      - name: lineitem
+        description: Individual line items within orders (order–product grain).
+        columns:
+          - name: l_orderkey
+            tests: [not_null]
+          - name: l_linenumber
+            tests: [not_null]
+          - name: l_extendedprice
+            tests: [{dbt_utils.expression_is_true: {expression: "> 0"}}]
+
+      - name: nation
+        columns:
+          - name: n_nationkey
+            tests: [not_null, unique]
+
+      - name: region
+        columns:
+          - name: r_regionkey
+            tests: [not_null, unique]
+
+
+models:
+  - name: stg_orders
+    description: >
+      Cleaned and renamed order records from TPC-H ORDERS table.
+      One row per order. All columns cast to canonical types.
+      Rows with null order_key, customer_key, or negative totals are excluded.
+    config:
+      contract:
+        enforced: false    # set true once all downstream consumers are aligned
+    columns:
+      - name: order_key
+        description: Unique surrogate-free natural key for an order.
+        tests:
+          - not_null
+          - unique
+      - name: customer_key
+        description: FK to stg_customers.customer_key.
+        tests:
+          - not_null
+          - relationships:
+              to:    ref('stg_customers')
+              field: customer_key
+      - name: order_status
+        description: "Raw status code: O=Open, F=Fulfilled, P=In Progress."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['O', 'F', 'P']
+      - name: order_status_desc
+        description: Human-readable order status label.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Open', 'Fulfilled', 'In Progress', 'Unknown']
+      - name: order_total_price
+        description: Total monetary value of the order in USD.
+        tests:
+          - not_null
+          - {dbt_utils.expression_is_true: {expression: ">= 0"}}
+      - name: order_date
+        description: Date the order was placed.
+        tests: [not_null]
+      - name: order_priority
+        description: "Priority string: 1-URGENT through 5-LOW."
+        tests: [not_null]
+      - name: order_priority_rank
+        description: Numeric rank 1 (highest) to 5 (lowest) for sort/filter.
+        tests:
+          - {dbt_utils.expression_is_true: {expression: "between 1 and 99"}}
+      - name: _loaded_at
+        description: Timestamp this row was processed by dbt.
+
+  - name: stg_customers
+    description: >
+      Customer master data joined to nation and region.
+      One row per customer with account tier classification.
+    columns:
+      - name: customer_key
+        description: Unique customer identifier (natural key from source).
+        tests: [not_null, unique]
+      - name: customer_name
+        tests: [not_null]
+      - name: market_segment
+        description: "TPC-H market segment: AUTOMOBILE, BUILDING, etc."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['AUTOMOBILE', 'BUILDING', 'FURNITURE', 'HOUSEHOLD', 'MACHINERY']
+      - name: nation_name
+        tests: [not_null]
+      - name: region_name
+        tests: [not_null]
+      - name: account_balance
+        description: Customer account balance in USD (can be negative).
+        tests: [not_null]
+      - name: account_tier
+        description: "Derived tier: Negative / Bronze / Silver / Gold / Platinum."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Negative', 'Bronze', 'Silver', 'Gold', 'Platinum']
+
+  - name: stg_products
+    description: >
+      Product catalogue joined to cheapest available supplier.
+      One row per part with parsed type hierarchy and margin estimate.
+    columns:
+      - name: product_key
+        description: Unique part identifier.
+        tests: [not_null, unique]
+      - name: product_name
+        tests: [not_null]
+      - name: retail_price
+        description: Retail list price in USD.
+        tests:
+          - not_null
+          - {dbt_utils.expression_is_true: {expression: "> 0"}}
+      - name: estimated_margin_pct
+        description: "(retail_price - supply_cost) / retail_price. NULL if supply_cost unavailable."
