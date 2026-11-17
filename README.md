@@ -5,7 +5,7 @@
 ![Airflow](https://img.shields.io/badge/Airflow-2.8.1-017CEE?logo=apacheairflow&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![Kimball](https://img.shields.io/badge/Modeling-Kimball_DWH-blueviolet)
-![CI](https://img.shields.io/github/actions/workflow/status/your-org/dbt-snowflake-analytics-platform/ci.yml?label=CI)
+![CI](https://img.shields.io/github/actions/workflow/status/charanneelam123-dot/dbt-snowflake-analytics-platform/ci.yml?label=CI)
 
 Production-grade **dbt + Snowflake analytics platform** using Kimball dimensional modeling. Powered by the TPC-H benchmark dataset (~1.5M orders, 150k customers, 200k products). Includes SCD Type 2, incremental fact tables, custom tests, fiscal calendar macros, and full CI/CD.
 
@@ -148,7 +148,7 @@ dbt-snowflake-analytics-platform/
 ### 1. Clone & Install
 
 ```bash
-git clone https://github.com/your-org/dbt-snowflake-analytics-platform.git
+git clone https://github.com/charanneelam123-dot/dbt-snowflake-analytics-platform.git
 cd dbt-snowflake-analytics-platform
 pip install dbt-core==1.7.4 dbt-snowflake==1.7.4
 ```
